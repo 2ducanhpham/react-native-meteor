@@ -189,6 +189,14 @@ module.exports = {
     });
 
     Data.ddp.on("changed", message => {
+      //update minimongo when delete fields on server
+      if ( message.cleared && message.cleared.length > 0 ) {
+        message.fields = message.fields || {};
+        message.cleared.forEach((item) => {
+          message.fields[item] = undefined;
+        });
+      }
+      //end
       Data.db[message.collection] && Data.db[message.collection].upsert({_id: message.id, ...message.fields});
     });
 
