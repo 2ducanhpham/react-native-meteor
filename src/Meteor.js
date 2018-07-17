@@ -1,29 +1,29 @@
-import { NetInfo, Platform, View } from 'react-native';
+import { NetInfo, Platform, View } from "react-native";
 
-import reactMixin from 'react-mixin';
-import Trackr from 'trackr';
-import EJSON from 'ejson';
-import DDP from '../lib/ddp.js';
-import Random from '../lib/Random';
+import reactMixin from "react-mixin";
+import Trackr from "trackr";
+import EJSON from "ejson";
+import DDP from "../lib/ddp.js";
+import Random from "../lib/Random";
 
-import Data from './Data';
-import { Collection } from './Collection';
-import call from './Call';
+import Data from "./Data";
+import { Collection } from "./Collection";
+import call from "./Call";
 
-import Mixin from './components/Mixin';
-import MeteorListView from './components/ListView';
-import MeteorComplexListView from './components/ComplexListView';
-import createContainer from './components/createContainer';
-import withTracker from './components/ReactMeteorData';
-import composeWithTracker from './components/composeWithTracker';
+import Mixin from "./components/Mixin";
+import MeteorListView from "./components/ListView";
+import MeteorComplexListView from "./components/ComplexListView";
+import createContainer from "./components/createContainer";
+import withTracker from "./components/ReactMeteorData";
+import composeWithTracker from "./components/composeWithTracker";
 
-import FSCollection from './CollectionFS/FSCollection';
-import FSCollectionImagesPreloader from './CollectionFS/FSCollectionImagesPreloader';
+import FSCollection from "./CollectionFS/FSCollection";
+import FSCollectionImagesPreloader from "./CollectionFS/FSCollectionImagesPreloader";
 
-import ReactiveDict from './ReactiveDict';
+import ReactiveDict from "./ReactiveDict";
 
-import User from './user/User';
-import Accounts from './user/Accounts';
+import User from "./user/User";
+import Accounts from "./user/Accounts";
 
 module.exports = {
   composeWithTracker,
@@ -35,7 +35,7 @@ module.exports = {
   ReactiveDict,
   Collection,
   FSCollectionImagesPreloader:
-    Platform.OS == 'android' ? View : FSCollectionImagesPreloader,
+    Platform.OS == "android" ? View : FSCollectionImagesPreloader,
   collection(name, options) {
     return new Collection(name, options);
   },
@@ -51,8 +51,8 @@ module.exports = {
   ...User,
   status() {
     return {
-      connected: Data.ddp ? Data.ddp.status == 'connected' : false,
-      status: Data.ddp ? Data.ddp.status : 'disconnected',
+      connected: Data.ddp ? Data.ddp.status == "connected" : false,
+      status: Data.ddp ? Data.ddp.status : "disconnected"
       //retryCount: 0
       //retryTime:
       //reason:
@@ -85,36 +85,38 @@ module.exports = {
     this.ddp = Data.ddp = new DDP({
       endpoint: endpoint,
       SocketConstructor: WebSocket,
-      ...options,
+      ...options
     });
 
-    NetInfo.isConnected.addEventListener('connectionChange', isConnected => {
+    NetInfo.isConnected.addEventListener("connectionChange", isConnected => {
       if (isConnected && Data.ddp.autoReconnect) {
         Data.ddp.connect();
       }
     });
 
-    Data.ddp.on('connected', () => {
+    Data.ddp.on("connected", () => {
       // Clear the collections of any stale data in case this is a reconnect
       if (Data.db && Data.db.collections) {
         for (var collection in Data.db.collections) {
-          Data.db[collection].remove({});
+          if (collection !== "users") {
+            Data.db[collection].remove({});
+          }
         }
       }
 
-      Data.notify('change');
+      Data.notify("change");
 
-      console.info('Connected to DDP server.');
+      console.info("Connected to DDP server.");
       this._loadInitialUser().then(() => {
         this._subscriptionsRestart();
       });
     });
 
     let lastDisconnect = null;
-    Data.ddp.on('disconnected', () => {
-      Data.notify('change');
+    Data.ddp.on("disconnected", () => {
+      Data.notify("change");
 
-      console.info('Disconnected from DDP server.');
+      console.info("Disconnected from DDP server.");
 
       if (!Data.ddp.autoReconnect) return;
 
@@ -125,17 +127,17 @@ module.exports = {
       lastDisconnect = new Date();
     });
 
-    Data.ddp.on('added', message => {
+    Data.ddp.on("added", message => {
       if (!Data.db[message.collection]) {
         Data.db.addCollection(message.collection);
       }
       Data.db[message.collection].upsert({
         _id: message.id,
-        ...message.fields,
+        ...message.fields
       });
     });
 
-    Data.ddp.on('ready', message => {
+    Data.ddp.on("ready", message => {
       const idsMap = new Map();
       for (var i in Data.subscriptions) {
         const sub = Data.subscriptions[i];
@@ -152,7 +154,7 @@ module.exports = {
       }
     });
 
-    Data.ddp.on('changed', message => {
+    Data.ddp.on("changed", message => {
       const unset = {};
       if (message.cleared) {
         message.cleared.forEach(field => {
@@ -164,26 +166,26 @@ module.exports = {
         Data.db[message.collection].upsert({
           _id: message.id,
           ...message.fields,
-          ...unset,
+          ...unset
         });
     });
 
-    Data.ddp.on('removed', message => {
+    Data.ddp.on("removed", message => {
       Data.db[message.collection] &&
         Data.db[message.collection].del(message.id);
     });
-    Data.ddp.on('result', message => {
+    Data.ddp.on("result", message => {
       const call = Data.calls.find(call => call.id == message.id);
-      if (typeof call.callback == 'function')
+      if (typeof call.callback == "function")
         call.callback(message.error, message.result);
       Data.calls.splice(Data.calls.findIndex(call => call.id == message.id), 1);
     });
 
-    Data.ddp.on('nosub', message => {
+    Data.ddp.on("nosub", message => {
       for (var i in Data.subscriptions) {
         const sub = Data.subscriptions[i];
         if (sub.subIdRemember == message.id) {
-          console.warn('No subscription existing for', sub.name);
+          console.warn("No subscription existing for", sub.name);
         }
       }
     });
@@ -193,13 +195,13 @@ module.exports = {
     var callbacks = {};
     if (params.length) {
       var lastParam = params[params.length - 1];
-      if (typeof lastParam == 'function') {
+      if (typeof lastParam == "function") {
         callbacks.onReady = params.pop();
       } else if (
         lastParam &&
-        (typeof lastParam.onReady == 'function' ||
-          typeof lastParam.onError == 'function' ||
-          typeof lastParam.onStop == 'function')
+        (typeof lastParam.onReady == "function" ||
+          typeof lastParam.onError == "function" ||
+          typeof lastParam.onStop == "function")
       ) {
         callbacks = params.pop();
       }
@@ -271,7 +273,7 @@ module.exports = {
           if (callbacks.onStop) {
             callbacks.onStop();
           }
-        },
+        }
       };
     }
 
@@ -287,7 +289,7 @@ module.exports = {
         record.readyDeps.depend();
         return record.ready;
       },
-      subscriptionId: id,
+      subscriptionId: id
     };
 
     if (Trackr.active) {
@@ -311,5 +313,5 @@ module.exports = {
     }
 
     return handle;
-  },
+  }
 };
